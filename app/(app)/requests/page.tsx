@@ -1,5 +1,7 @@
+import { DataNotice } from "@/components/DataNotice";
 import { GlassCard, PageHeader, Pill } from "@/components/Glass";
-import { clientById, requests, siteById, type Request } from "@/lib/data";
+import { lookups, type Request } from "@/lib/data";
+import { getData } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -12,18 +14,22 @@ function ago(iso: string) {
   return `${Math.round(mins / 1440)}d ago`;
 }
 
-export default function RequestsPage() {
+export default async function RequestsPage() {
+  const data = await getData();
+  const { clientName, site } = lookups(data);
+
   return (
     <>
       <PageHeader
         title="Requests"
         subtitle="Client WhatsApp message aata hai, AI classify karke yahan task bana deta hai. Aap approve karte hain, kaam hota hai, phir follow-up."
       />
+      <DataNotice data={data} />
 
       <div className="-mx-4 overflow-x-auto px-4 pb-2 lg:mx-0 lg:px-0">
         <div className="grid min-w-[1100px] grid-cols-5 gap-4">
           {columns.map((col) => {
-            const items = requests.filter((r) => r.status === col);
+            const items = data.requests.filter((r) => r.status === col);
             return (
               <section key={col} aria-label={col}>
                 <h2 className="mb-3 flex items-center justify-between px-1 text-sm font-bold text-white">
@@ -34,12 +40,12 @@ export default function RequestsPage() {
                   {items.map((r) => (
                     <GlassCard key={r.id} hover className="p-4">
                       <div className="flex flex-wrap gap-2">
-                        <Pill tone="blue">{clientById(r.clientId).name}</Pill>
+                        <Pill tone="blue">{clientName(r.clientId)}</Pill>
                         {r.priority === "Urgent" ? <Pill tone="bad">Urgent</Pill> : null}
                       </div>
                       <p className="mt-3 text-sm text-slate-100">{r.message}</p>
                       <p className="mt-3 text-xs text-slate-400">
-                        {siteById(r.siteId).domain} · {r.category} · {ago(r.receivedAt)}
+                        {site(r.siteId)?.domain ?? "—"} · {r.category} · {ago(r.receivedAt)}
                       </p>
                     </GlassCard>
                   ))}

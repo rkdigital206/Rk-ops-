@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "@/app/actions";
 import {
+  LogOut,
   LayoutDashboard,
   Users,
   Globe,
@@ -41,7 +43,7 @@ function Brand() {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ authEnabled = false }: { authEnabled?: boolean }) {
   const path = usePathname();
 
   return (
@@ -69,15 +71,30 @@ export function Sidebar() {
             );
           })}
         </nav>
-        <div className="rounded-[14px] border border-white/10 bg-white/5 p-4 text-xs text-slate-300">
-          <p className="font-semibold text-white">Phase 1 prototype</p>
-          <p className="mt-1">Demo data. Supabase + n8n wiring next.</p>
-        </div>
+        {authEnabled ? (
+          <form action={signOut}>
+            <button type="submit" className="btn-ghost w-full">
+              <LogOut size={16} aria-hidden="true" /> Sign out
+            </button>
+          </form>
+        ) : (
+          <div className="rounded-[14px] border border-white/10 bg-white/5 p-4 text-xs text-slate-300">
+            <p className="font-semibold text-white">Demo mode</p>
+            <p className="mt-1">Supabase connect nahi hai. Login aur real data abhi off hain.</p>
+          </div>
+        )}
       </aside>
 
       {/* Mobile top bar */}
       <div className="glass fixed inset-x-3 top-3 z-30 flex items-center justify-between rounded-[18px] px-4 py-3 lg:hidden">
         <Brand />
+        {authEnabled ? (
+          <form action={signOut}>
+            <button type="submit" aria-label="Sign out" className="grid h-11 w-11 place-items-center rounded-xl border border-white/15 bg-white/5 text-slate-200">
+              <LogOut size={18} aria-hidden="true" />
+            </button>
+          </form>
+        ) : null}
       </div>
 
       {/* Mobile bottom nav */}

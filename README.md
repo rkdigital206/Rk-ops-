@@ -21,16 +21,31 @@ npm run dev
 | `supabase/schema.sql` | Database schema, `expiry_items` view, RLS |
 | `n8n/expiry-reminders.json` | Daily expiry check, WhatsApp to owner and client |
 
+## Connect Supabase (login + real data)
+
+1. Create a Supabase project. In **Authentication > Sign In / Providers**, turn **off** "Allow new users to sign up".
+2. SQL editor: run `supabase/schema.sql`, then add yourself as owner:
+   `insert into app_owners (email) values ('your-login-email');`
+3. Authentication > Users > **Add user** with that email and a strong password.
+4. In Vercel project > Settings > Environment Variables add:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (the anon / publishable key, never the service key)
+5. Redeploy. The app now requires login and reads real data. Without these variables it stays in demo mode.
+
+## How it works
+
+- `middleware.ts` redirects every page to `/login` when Supabase is configured.
+- `lib/db.ts` loads clients, hostings, sites and requests; `lib/data.ts` holds demo data used only when Supabase is not configured.
+- Row Level Security allows only emails listed in `app_owners`.
+
 ## Next steps
 
-1. Create a Supabase project and run `supabase/schema.sql`.
-2. Add `NEXT_PUBLIC_SUPABASE_URL` and key in Vercel env vars; swap `lib/data.ts` for queries.
-3. Import the n8n workflow and set `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `WA_PHONE_NUMBER_ID`, `OWNER_WHATSAPP`.
-4. Add real clients, hosting and expiry dates.
-5. Phase 2: WhatsApp intake, AI classification, task creation.
+1. Add / edit forms for clients, hosting and sites.
+2. Import the n8n workflow and set `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `WA_PHONE_NUMBER_ID`, `OWNER_WHATSAPP`.
+3. Phase 2: WhatsApp intake, AI classification, task creation.
 
 ## Security notes
 
 - Never store cPanel / WordPress / hosting passwords in the database. Use a vault and keep only `vault_ref`.
-- Add authentication (Supabase Auth) before putting real client data in. The prototype has none.
+- Keep the Supabase service key out of this app; it belongs only in n8n.
 - Use the official WhatsApp Cloud API, not unofficial WhatsApp Web libraries.

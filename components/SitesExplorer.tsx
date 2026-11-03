@@ -16,7 +16,7 @@ export interface SiteRow {
   status: "up" | "degraded" | "down";
   uptime: number;
   responseMs: number;
-  domainDays: number;
+  domainDays: number | null;
   domainDate: string;
 }
 
@@ -103,7 +103,7 @@ export function SitesExplorer({ rows, clients }: { rows: SiteRow[]; clients: str
 
             <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4">
               <span className="text-xs text-slate-400">Domain renews {s.domainDate}</span>
-              <ExpiryBadge days={s.domainDays} />
+              {s.domainDays !== null ? <ExpiryBadge days={s.domainDays} /> : <Pill>Not set</Pill>}
             </div>
           </GlassCard>
         ))}

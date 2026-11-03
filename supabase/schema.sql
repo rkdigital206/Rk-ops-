@@ -102,15 +102,32 @@ create or replace view expiry_items as
        where si.hosting_id = h.id limit 1
     ) c on true;
 
--- Row Level Security: lock everything down, access via service role / authenticated owner.
+-- Row Level Security: only emails listed in app_owners can read or write anything.
+-- (Defence in depth: also turn OFF public sign-ups in Supabase Auth settings.)
+create table app_owners (
+  email text primary key
+);
+alter table app_owners enable row level security;
+-- No policy on app_owners: it is managed only from the SQL editor / service role.
+
+create or replace function is_app_owner() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from app_owners where lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  );
+$$;
+
 alter table clients enable row level security;
 alter table hostings enable row level security;
 alter table sites enable row level security;
 alter table requests enable row level security;
 alter table reminder_log enable row level security;
 
-create policy "owner full access" on clients for all to authenticated using (true) with check (true);
-create policy "owner full access" on hostings for all to authenticated using (true) with check (true);
-create policy "owner full access" on sites for all to authenticated using (true) with check (true);
-create policy "owner full access" on requests for all to authenticated using (true) with check (true);
-create policy "owner full access" on reminder_log for all to authenticated using (true) with check (true);
+create policy "owner only" on clients for all to authenticated using (is_app_owner()) with check (is_app_owner());
+create policy "owner only" on hostings for all to authenticated using (is_app_owner()) with check (is_app_owner());
+create policy "owner only" on sites for all to authenticated using (is_app_owner()) with check (is_app_owner());
+create policy "owner only" on requests for all to authenticated using (is_app_owner()) with check (is_app_owner());
+create policy "owner only" on reminder_log for all to authenticated using (is_app_owner()) with check (is_app_owner());
+
+-- After running this file, add yourself as owner (use your login email):
+-- insert into app_owners (email) values ('you@example.com');
