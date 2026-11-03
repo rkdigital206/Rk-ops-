@@ -19,7 +19,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className="relative min-h-screen overflow-x-hidden bg-navy">
+      <body className="relative min-h-screen overflow-x-hidden">
         {/* Ambient glass backdrop */}
         <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
           <div className="absolute -left-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-royal/40 blur-[120px]" />

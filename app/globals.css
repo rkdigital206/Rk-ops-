@@ -9,9 +9,12 @@
   color-scheme: dark;
 }
 
-html,
-body {
+html {
   background: #0b1220;
+}
+
+body {
+  background: transparent;
   color: #e2e8f0;
 }
 
