@@ -3,8 +3,6 @@
 -- keep cPanel / WP / hosting logins in a vault (Supabase Vault, Bitwarden, Infisical)
 -- and store only a reference id in `vault_ref`.
 
-create extension if not exists "pgcrypto";
-
 create type site_platform as enum ('wordpress', 'custom_php', 'shopify', 'other');
 create type integration_tier as enum ('A', 'C', 'D');
 create type hosting_owner as enum ('rk_digital', 'client');
@@ -82,8 +80,14 @@ create table reminder_log (
   unique (item_type, item_id, days_before, recipient)
 );
 
+create index sites_client_id_idx on sites (client_id);
+create index sites_hosting_id_idx on sites (hosting_id);
+create index requests_client_id_idx on requests (client_id);
+create index requests_site_id_idx on requests (site_id);
+
 -- One row per upcoming expiry, used by n8n's daily check.
-create or replace view expiry_items as
+-- security_invoker makes the view obey the caller's RLS instead of bypassing it.
+create or replace view expiry_items with (security_invoker = true) as
   select 'domain'::text as item_type, s.id as item_id, s.domain as label,
          c.id as client_id, c.name as client_name, c.whatsapp as client_whatsapp,
          s.domain_expires_on as expires_on, null::numeric as amount
@@ -110,7 +114,12 @@ create table app_owners (
 alter table app_owners enable row level security;
 -- No policy on app_owners: it is managed only from the SQL editor / service role.
 
-create or replace function is_app_owner() returns boolean
+-- Kept in a private schema so it is not exposed as a public API endpoint.
+create schema if not exists private;
+revoke all on schema private from public, anon;
+grant usage on schema private to authenticated;
+
+create or replace function private.is_app_owner() returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from app_owners where lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
@@ -123,11 +132,16 @@ alter table sites enable row level security;
 alter table requests enable row level security;
 alter table reminder_log enable row level security;
 
-create policy "owner only" on clients for all to authenticated using (is_app_owner()) with check (is_app_owner());
-create policy "owner only" on hostings for all to authenticated using (is_app_owner()) with check (is_app_owner());
-create policy "owner only" on sites for all to authenticated using (is_app_owner()) with check (is_app_owner());
-create policy "owner only" on requests for all to authenticated using (is_app_owner()) with check (is_app_owner());
-create policy "owner only" on reminder_log for all to authenticated using (is_app_owner()) with check (is_app_owner());
+create policy "owner only" on clients for all to authenticated using (private.is_app_owner()) with check (private.is_app_owner());
+create policy "owner only" on hostings for all to authenticated using (private.is_app_owner()) with check (private.is_app_owner());
+create policy "owner only" on sites for all to authenticated using (private.is_app_owner()) with check (private.is_app_owner());
+create policy "owner only" on requests for all to authenticated using (private.is_app_owner()) with check (private.is_app_owner());
+create policy "owner only" on reminder_log for all to authenticated using (private.is_app_owner()) with check (private.is_app_owner());
+
+-- Defence in depth: the anonymous (logged-out) role gets no access at all.
+revoke all on clients, hostings, sites, requests, reminder_log, app_owners, expiry_items from anon;
+revoke execute on function private.is_app_owner() from public, anon;
+grant execute on function private.is_app_owner() to authenticated;
 
 -- After running this file, add yourself as owner (use your login email):
 -- insert into app_owners (email) values ('you@example.com');
